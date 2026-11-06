@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  check-beacon:
+    name: Check & Build edgelink-beacon (${{ matrix.arch }} musl static)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            arch: x86_64
+          - target: aarch64-unknown-linux-musl
+            arch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl-tools (x86_64)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Install cross tool for ARM64 musl
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build & Verify (x86_64 musl static)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo check --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
+          cargo build --release --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
+          file edgelink-beacon/target/${{ matrix.target }}/release/edgelink-beacon
+
+      - name: Build & Verify (ARM64 musl static)
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          cross check --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
+          cross build --release --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
+          file edgelink-beacon/target/${{ matrix.target }}/release/edgelink-beacon
+
+  check-router:
+    name: Check edgelink-router (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Cargo Check All Bins
+        shell: pwsh
+        run: cargo check --manifest-path edgelink-router/Cargo.toml --bins

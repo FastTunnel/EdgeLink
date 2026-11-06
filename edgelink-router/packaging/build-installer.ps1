@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$RepoRoot   = (Resolve-Path (Join-Path $ProjectDir "..\..")).Path
+$RepoRoot   = (Resolve-Path (Join-Path $ProjectDir "..")).Path
 $DistDir    = Join-Path $RepoRoot "dist"
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 

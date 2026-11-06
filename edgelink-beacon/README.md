@@ -4,20 +4,32 @@
 
 ## Debian 安装包构建与安装
 
-在 Debian/Ubuntu 开发板或对应架构的 Linux 构建机上执行：
+在 Debian/Ubuntu 开发板或构建机上执行：
 
 ```bash
+# 1. 编译当前主机架构
 bash packaging/build-deb.sh
-sudo apt install ../../dist/edgelink-beacon_*.deb
+
+# 2. 交叉构建 ARM64 (RK3588, 树莓派等)
+bash packaging/build-deb.sh --arch arm64
+
+# 3. 构建 Linux x86_64
+bash packaging/build-deb.sh --arch x86_64
+
+# 4. 一键同时构建 x86_64 与 ARM64 双架构
+bash packaging/build-deb.sh --all
+
+# 安装生成的 deb 包
+sudo apt install ../dist/edgelink-beacon_*.deb
 ```
 
-脚本默认按当前机器架构编译；也可以提供 Rust target 进行交叉构建，例如：
-
+交叉构建 ARM64 前需安装目标工具链与链接器：
 ```bash
-bash packaging/build-deb.sh --target aarch64-unknown-linux-gnu
+sudo apt update && sudo apt install -y gcc-aarch64-linux-gnu dpkg-dev
+rustup target add aarch64-unknown-linux-gnu
 ```
 
-交叉构建前需安装对应 Rust target 和链接器。包生成在仓库根目录的 `dist/` 下。安装后 systemd 会自动启用并启动 `edgelink-beacon.service`；服务以 systemd 动态分配的低权限账号（DynamicUser）运行。卸载包时会自动停止并禁用服务。
+生成的安装包输出在仓库 `dist/` 目录下。安装后 systemd 会自动启用并启动 `edgelink-beacon.service`；服务以 systemd 动态分配的低权限账号（DynamicUser）运行。卸载包时会自动停止并禁用服务。
 
 ```bash
 sudo systemctl status edgelink-beacon

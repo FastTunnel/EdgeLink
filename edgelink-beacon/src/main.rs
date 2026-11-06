@@ -8,7 +8,7 @@ use std::{env, process};
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("board_discoveryd: {error}");
+        eprintln!("edgelink-beacon: {error}");
         process::exit(1);
     }
 }
@@ -34,7 +34,7 @@ fn parse_port() -> Result<u16, Box<dyn std::error::Error>> {
                 }
             }
             "--help" | "-h" => {
-                println!("Usage: board_discoveryd [--port UDP_PORT]");
+                println!("Usage: edgelink-beacon [--port UDP_PORT]");
                 process::exit(0);
             }
             unknown => return Err(format!("unknown argument: {unknown}").into()),

@@ -1,2 +1,21 @@
-**/target/*
-**/CACHEDIR.TAG
+# Rust build artifacts
+target/
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# Distribution & Release artifacts
+dist/
+release-assets/
+*.deb
+*.tar.gz
+*.zip
+*.exe
+
+# OS & IDE temporary files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
