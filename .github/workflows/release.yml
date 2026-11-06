@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag Name (e.g. v0.1.0)'
+        description: 'Release Tag Name (e.g. v1.0.0)'
         required: true
-        default: 'v0.1.0'
+        default: 'v1.0.0'
 
 permissions:
   contents: write
@@ -44,78 +44,10 @@ jobs:
         with:
           tool: cross
 
-      - name: Build Binary (x86_64 musl)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
+      - name: Build and Package Debian (.deb)
         run: |
-          cargo build --release --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
-
-      - name: Build Binary (ARM64 musl)
-        if: matrix.target == 'aarch64-unknown-linux-musl'
-        run: |
-          cross build --release --manifest-path edgelink-beacon/Cargo.toml --target ${{ matrix.target }}
-
-      - name: Verify Static Linking
-        run: |
-          BIN_PATH="edgelink-beacon/target/${{ matrix.target }}/release/edgelink-beacon"
-          file "$BIN_PATH"
-          # 验证不依赖动态 glibc
-          if command -v ldd >/dev/null 2>&1; then
-            ldd "$BIN_PATH" 2>&1 || true
-          fi
-
-      - name: Package Debian (.deb)
-        run: |
-          VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' edgelink-beacon/Cargo.toml | head -n 1)
-          BIN_PATH="edgelink-beacon/target/${{ matrix.target }}/release/edgelink-beacon"
-          PACKAGE_NAME="edgelink-beacon_${VERSION}_${{ matrix.deb_arch }}.deb"
-          STAGE_DIR=$(mktemp -d)
-          mkdir -p dist
-
-          install -D -m 0755 "$BIN_PATH" "$STAGE_DIR/usr/bin/edgelink-beacon"
-          install -D -m 0644 edgelink-beacon/packaging/edgelink-beacon.service "$STAGE_DIR/lib/systemd/system/edgelink-beacon.service"
-          mkdir -p "$STAGE_DIR/usr/share/doc/edgelink-beacon"
-          cat > "$STAGE_DIR/usr/share/doc/edgelink-beacon/README.Debian" <<'EOF'
-The service listens on UDP port 40191 by default. Statically linked with musl libc.
-EOF
-
-          mkdir -p "$STAGE_DIR/DEBIAN"
-          cat > "$STAGE_DIR/DEBIAN/control" <<EOF
-Package: edgelink-beacon
-Version: $VERSION
-Section: net
-Priority: optional
-Architecture: ${{ matrix.deb_arch }}
-Depends: systemd, init-system-helpers
-Maintainer: EdgeLink Project <noreply@localhost>
-Description: EdgeLink Beacon - Musl fully static UDP discovery responder for Edge Linux boards
- Pure static binary compiled with musl libc. Guaranteed to run on any Linux kernel/distribution
- without glibc version dependency issues.
-EOF
-
-          cat > "$STAGE_DIR/DEBIAN/postinst" <<'EOF'
-#!/bin/sh
-set -e
-if [ "$1" = "configure" ]; then
-    systemctl --system daemon-reload >/dev/null 2>&1 || true
-    systemctl enable edgelink-beacon.service >/dev/null 2>&1 || true
-    systemctl restart edgelink-beacon.service >/dev/null 2>&1 || true
-fi
-exit 0
-EOF
-          chmod 0755 "$STAGE_DIR/DEBIAN/postinst"
-
-          cat > "$STAGE_DIR/DEBIAN/prerm" <<'EOF'
-#!/bin/sh
-set -e
-if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
-    systemctl stop edgelink-beacon.service >/dev/null 2>&1 || true
-    systemctl disable edgelink-beacon.service >/dev/null 2>&1 || true
-fi
-exit 0
-EOF
-          chmod 0755 "$STAGE_DIR/DEBIAN/prerm"
-
-          dpkg-deb --build --root-owner-group "$STAGE_DIR" "dist/$PACKAGE_NAME"
+          chmod +x edgelink-beacon/packaging/build-deb.sh
+          bash edgelink-beacon/packaging/build-deb.sh --target ${{ matrix.target }}
 
       - name: Create tar.gz archive
         run: |
@@ -125,6 +57,7 @@ EOF
           cp "$BIN_PATH" "$STAGE_DIR/edgelink-beacon"
           cp edgelink-beacon/packaging/edgelink-beacon.service "$STAGE_DIR/"
           cp edgelink-beacon/README.md "$STAGE_DIR/"
+          mkdir -p dist
           tar -czvf "dist/edgelink-beacon_${VERSION}_${{ matrix.deb_arch }}_musl_static.tar.gz" -C "$STAGE_DIR" .
 
       - name: Upload artifacts
