@@ -85,7 +85,7 @@ fn receive_packet(
     message.msg_iov = &mut iov;
     message.msg_iovlen = 1;
     message.msg_control = control.as_mut_ptr().cast();
-    message.msg_controllen = size_of_val(&control);
+    message.msg_controllen = size_of_val(&control) as _;
 
     let received = unsafe { libc::recvmsg(fd, &mut message, 0) };
     if received < 0 {
@@ -170,7 +170,7 @@ fn send_on_interface(
     message.msg_iovlen = 1;
     message.msg_control = control.as_mut_ptr().cast();
     message.msg_controllen =
-        unsafe { libc::CMSG_SPACE(size_of::<libc::in_pktinfo>() as u32) as usize };
+        unsafe { libc::CMSG_SPACE(size_of::<libc::in_pktinfo>() as u32) as _ };
 
     let header = unsafe { libc::CMSG_FIRSTHDR(&message) };
     if header.is_null() {
@@ -179,7 +179,7 @@ fn send_on_interface(
     unsafe {
         (*header).cmsg_level = libc::IPPROTO_IP;
         (*header).cmsg_type = libc::IP_PKTINFO;
-        (*header).cmsg_len = libc::CMSG_LEN(size_of::<libc::in_pktinfo>() as u32) as usize;
+        (*header).cmsg_len = libc::CMSG_LEN(size_of::<libc::in_pktinfo>() as u32) as _;
         let info = libc::in_pktinfo {
             ipi_ifindex: interface_index as libc::c_int,
             ipi_spec_dst: libc::in_addr {
